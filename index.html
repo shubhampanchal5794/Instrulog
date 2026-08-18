@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>InstruLog</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root{
+    --ink:#1b2330;
+    --paper:#f2efe6;
+    --panel:#ffffff;
+    --line:#d9d3c2;
+    --amber:#e8a92d;
+    --ok:#3d7a4f;
+    --danger:#b3462c;
+    --mono: 'SF Mono', 'Courier New', monospace;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;-webkit-tap-highlight-color:transparent;}
+  .stripe{height:6px;background:repeating-linear-gradient(45deg,var(--amber),var(--amber) 10px,var(--ink) 10px,var(--ink) 20px);}
+  header{padding:18px 20px 14px;border-bottom:1px solid var(--line);background:var(--panel);display:flex;justify-content:space-between;align-items:center;}
+  header h1{margin:0;font-size:20px;letter-spacing:0.02em;}
+  header .tag{font-family:var(--mono);font-size:11px;color:#8a8168;text-transform:uppercase;letter-spacing:0.12em;margin-top:2px;}
+  .whoami{font-family:var(--mono);font-size:11px;text-align:right;cursor:pointer;color:#6b6350;}
+  .whoami b{color:var(--ink);display:block;font-size:13px;}
+  nav{display:flex;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10;}
+  nav button{flex:1;padding:13px 4px;border:none;background:none;font-size:13px;font-weight:600;color:#8a8168;border-bottom:3px solid transparent;cursor:pointer;}
+  nav button.active{color:var(--ink);border-bottom-color:var(--amber);}
+  main{padding:16px;max-width:520px;margin:0 auto;padding-bottom:60px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:12px;}
+  .card h2{margin:0 0 4px;font-size:15px;}
+  .muted{color:#8a8168;font-size:13px;}
+  input, select, textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:15px;background:#fcfbf8;color:var(--ink);font-family:inherit;margin-top:6px;}
+  label{display:block;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#6b6350;margin-top:10px;}
+  button.primary{width:100%;margin-top:16px;padding:13px;background:var(--ink);color:var(--paper);border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;}
+  button.amber{background:var(--amber);color:var(--ink);}
+  button.ghost{background:none;border:1px solid var(--line);color:var(--ink);}
+  #reader{border-radius:10px;overflow:hidden;border:1px solid var(--line);}
+  .confirm{text-align:center;padding:26px 12px;}
+  .confirm .big-tag{display:inline-block;font-family:var(--mono);padding:8px 20px;border-radius:24px;font-size:15px;font-weight:700;margin-bottom:12px;}
+  .confirm .big-tag.entry{background:#d9ead9;color:var(--ok);}
+  .confirm .big-tag.exit{background:#f6dcc8;color:var(--danger);}
+  .confirm .inst-title{font-weight:700;font-size:16px;margin-bottom:4px;}
+  .inst-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);}
+  .inst-row:last-child{border-bottom:none;}
+  .inst-name{font-weight:600;font-size:14px;}
+  .inst-meta{font-family:var(--mono);font-size:11px;color:#8a8168;}
+  .status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px;}
+  .status-dot.in{background:var(--ok);}
+  .status-dot.out{background:var(--danger);}
+  .log-row{padding:10px 0;border-bottom:1px solid var(--line);font-size:13px;}
+  .log-row:last-child{border-bottom:none;}
+  .log-top{display:flex;justify-content:space-between;font-weight:600;}
+  .action-tag{font-family:var(--mono);font-size:10px;text-transform:uppercase;padding:2px 7px;border-radius:10px;}
+  .action-tag.entry{background:#d9ead9;color:var(--ok);}
+  .action-tag.exit{background:#f6dcc8;color:var(--danger);}
+  .empty{text-align:center;padding:30px 10px;color:#8a8168;font-size:13px;}
+  .qr-print{text-align:center;padding:10px;}
+  .icon-btn{background:none;border:none;color:#8a8168;font-size:12px;cursor:pointer;text-decoration:underline;}
+  .hidden{display:none !important;}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:20px;font-size:13px;z-index:100;opacity:0;transition:opacity 0.3s;pointer-events:none;max-width:88%;text-align:center;}
+  .toast.show{opacity:1;}
+  .overlay{position:fixed;inset:0;background:var(--paper);z-index:200;display:flex;align-items:center;justify-content:center;padding:24px;}
+  .setup-box{max-width:360px;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:24px;}
+  .setup-box h2{margin-top:0;}
+  .notice{font-size:12px;color:#8a8168;background:#f6f1e2;border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-top:14px;}
+  .spinner{display:inline-block;width:14px;height:14px;border:2px solid #ccc;border-top-color:var(--ink);border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .sync-note{font-family:var(--mono);font-size:10px;color:#8a8168;text-align:center;margin-top:8px;}
+</style>
+</head>
+<body>
+
+<div class="stripe"></div>
+<header>
+  <div>
+    <h1>InstruLog</h1>
+    <div class="tag">Instrument tracking · QR based</div>
+  </div>
+  <div class="whoami" id="whoamiBtn"><b id="whoamiName">—</b>change</div>
+</header>
+
+<nav>
+  <button class="tab-btn active" data-tab="scan">Scan</button>
+  <button class="tab-btn" data-tab="instruments">Instruments</button>
+  <button class="tab-btn" data-tab="log">History</button>
+</nav>
+
+<main>
+
+  <!-- SCAN TAB -->
+  <section id="tab-scan">
+    <div class="card">
+      <h2>Scan an instrument QR</h2>
+      <p class="muted">Point your camera at the QR code. Entry/exit is detected automatically — no typing needed.</p>
+      <div id="reader" style="width:100%;"></div>
+      <button class="primary ghost" id="startScanBtn">Start camera</button>
+    </div>
+
+    <div class="card hidden" id="scanResultCard">
+      <div class="confirm">
+        <div class="big-tag" id="confirmTag">ENTRY</div>
+        <div class="inst-title" id="confirmInstName">—</div>
+        <div class="muted" id="confirmMeta">—</div>
+      </div>
+    </div>
+
+    <div class="card" id="manualEntryCard">
+      <h2>No camera / manual entry</h2>
+      <p class="muted">Select an instrument manually instead of scanning.</p>
+      <select id="manualSelect"></select>
+      <button class="primary ghost" id="manualLogBtn">Log this instrument</button>
+    </div>
+  </section>
+
+  <!-- INSTRUMENTS TAB -->
+  <section id="tab-instruments" class="hidden">
+    <div class="card">
+      <h2>Add instrument</h2>
+      <label>Name</label>
+      <input type="text" id="newInstName" placeholder="e.g. UV-Vis Spectrophotometer #2">
+      <label>Category / model (optional)</label>
+      <input type="text" id="newInstCategory" placeholder="e.g. Shimadzu UV-1800">
+      <button class="primary" id="addInstBtn">Add & generate QR</button>
+    </div>
+
+    <div class="card">
+      <h2>Registered instruments <button class="icon-btn" id="refreshBtn" style="float:right;">refresh</button></h2>
+      <div id="instrumentList"><div class="empty">Loading…</div></div>
+    </div>
+
+    <div class="card hidden" id="qrDisplayCard">
+      <h2 id="qrDisplayName">QR Code</h2>
+      <div class="qr-print" id="qrCanvasHolder"></div>
+      <p class="muted" style="text-align:center;">Screenshot or print this and attach it to the instrument.</p>
+      <button class="primary ghost" id="closeQrBtn">Close</button>
+    </div>
+  </section>
+
+  <!-- LOG TAB -->
+  <section id="tab-log" class="hidden">
+    <div class="card">
+      <h2>Log history</h2>
+      <div id="logList"><div class="empty">Loading…</div></div>
+    </div>
+  </section>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<div class="overlay" id="setupOverlay">
+  <div class="setup-box">
+    <h2>Welcome</h2>
+    <p class="muted">Enter your name. Scans during this session will be logged under your name automatically.</p>
+    <label>Your name</label>
+    <input type="text" id="setupNameInput" placeholder="e.g. Priya Sharma">
+    <button class="primary amber" id="setupSaveBtn">Continue</button>
+    <div class="notice">Data is stored in a shared Google Sheet — everyone using this app can see all entries.</div>
+  </div>
+</div>
+
+<script>
+// ==== Google Sheets backend ====
+const SHEET_API = 'https://script.google.com/macros/s/AKfycbzcl__HNukqQCiX3VowYrljx6PFLXFzz2sKyyVh5h1stwWoWSX7UpNfirJaNYceshDJug/exec';
+
+let instruments = [];
+let logs = [];
+let profile = null;
+let html5QrCode = null;
+
+function showToast(msg, duration){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), duration || 2200);
+}
+function uid(){ return Math.random().toString(36).slice(2,8).toUpperCase(); }
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// ---- Profile (session only) ----
+function loadProfile(){
+  document.getElementById('setupOverlay').classList.remove('hidden');
+}
+document.getElementById('setupSaveBtn').addEventListener('click', ()=>{
+  const name = document.getElementById('setupNameInput').value.trim();
+  if(!name){ showToast('Enter your name'); return; }
+  profile = { name };
+  document.getElementById('whoamiName').textContent = name;
+  document.getElementById('setupOverlay').classList.add('hidden');
+});
+document.getElementById('whoamiBtn').addEventListener('click', ()=>{
+  document.getElementById('setupNameInput').value = profile ? profile.name : '';
+  document.getElementById('setupOverlay').classList.remove('hidden');
+});
+
+// ---- Sheet data ----
+async function loadData(){
+  try{
+    const res = await fetch(SHEET_API);
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    instruments = (data.instruments || []).filter(i => i.id);
+    // Sheet rows are oldest-first; we want newest-first for display
+    logs = (data.logs || []).filter(l => l.id).reverse();
+    renderInstruments();
+    renderManualSelect();
+    renderLogs();
+  }catch(e){
+    showToast('Could not load from Sheet: ' + (e && e.message ? e.message : e), 6000);
+    document.getElementById('instrumentList').innerHTML = '<div class="empty">Could not load data. Check connection and tap refresh.</div>';
+    document.getElementById('logList').innerHTML = '<div class="empty">Could not load data.</div>';
+  }
+}
+document.getElementById('refreshBtn').addEventListener('click', (e)=>{ e.preventDefault(); loadData(); showToast('Refreshed'); });
+
+async function postToSheet(payload){
+  // Plain string body avoids a CORS preflight against Apps Script.
+  const res = await fetch(SHEET_API, { method: 'POST', body: JSON.stringify(payload) });
+  if(!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+// ---- Tabs ----
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('main > section').forEach(s=>s.classList.add('hidden'));
+    document.getElementById('tab-'+btn.dataset.tab).classList.remove('hidden');
+    if(btn.dataset.tab !== 'scan' && html5QrCode){ stopScanner(); }
+    if(btn.dataset.tab === 'instruments' || btn.dataset.tab === 'log'){ loadData(); }
+  });
+});
+
+// ---- Add instrument ----
+document.getElementById('addInstBtn').addEventListener('click', async ()=>{
+  const name = document.getElementById('newInstName').value.trim();
+  const cat = document.getElementById('newInstCategory').value.trim();
+  if(!name){ showToast('Enter an instrument name'); return; }
+  const inst = { id: uid(), name, category: cat, added: new Date().toISOString() };
+  instruments.push(inst);
+  document.getElementById('newInstName').value = '';
+  document.getElementById('newInstCategory').value = '';
+  renderInstruments();
+  renderManualSelect();
+  showQr(inst);
+  showToast('Saving to Sheet…');
+  try{
+    await postToSheet({ action: 'addInstrument', id: inst.id, name: inst.name, category: inst.category, added: inst.added });
+    showToast('Instrument saved');
+  }catch(e){
+    showToast('Save failed: ' + (e && e.message ? e.message : e), 6000);
+  }
+});
+
+function lastActionFor(instId){
+  const entries = logs.filter(l => l.instrumentId === instId);
+  return entries.length ? entries[0].action : null;
+}
+function nextActionFor(instId){
+  const last = lastActionFor(instId);
+  return last === 'entry' ? 'exit' : 'entry';
+}
+
+function renderInstruments(){
+  const list = document.getElementById('instrumentList');
+  if(instruments.length === 0){
+    list.innerHTML = '<div class="empty">No instruments yet — add one above.</div>';
+    return;
+  }
+  list.innerHTML = instruments.map(inst => {
+    const last = lastActionFor(inst.id);
+    const inUse = last === 'entry';
+    return `
+    <div class="inst-row">
+      <div>
+        <div class="inst-name"><span class="status-dot ${inUse?'out':'in'}"></span>${escapeHtml(inst.name)}</div>
+        <div class="inst-meta">${escapeHtml(inst.category||'—')} · ID ${inst.id} · ${inUse?'in use':'available'}</div>
+      </div>
+      <button class="icon-btn" onclick="showQrById('${inst.id}')">View QR</button>
+    </div>`;
+  }).join('');
+}
+
+function renderManualSelect(){
+  const sel = document.getElementById('manualSelect');
+  sel.innerHTML = instruments.length
+    ? instruments.map(i=>`<option value="${i.id}">${escapeHtml(i.name)}</option>`).join('')
+    : '<option value="">No instruments registered</option>';
+}
+
+// ---- QR display ----
+function showQrById(id){ const inst = instruments.find(i=>i.id===id); if(inst) showQr(inst); }
+function showQr(inst){
+  document.getElementById('qrDisplayCard').classList.remove('hidden');
+  document.getElementById('qrDisplayName').textContent = inst.name;
+  const holder = document.getElementById('qrCanvasHolder');
+  holder.innerHTML = '';
+  new QRCode(holder, { text: inst.id, width: 220, height: 220, colorDark: '#1b2330', colorLight: '#ffffff' });
+  document.getElementById('qrDisplayCard').scrollIntoView({behavior:'smooth'});
+}
+document.getElementById('closeQrBtn').addEventListener('click', ()=>{
+  document.getElementById('qrDisplayCard').classList.add('hidden');
+});
+
+// ---- Scanning ----
+document.getElementById('startScanBtn').addEventListener('click', startScanner);
+
+function startScanner(){
+  if(!profile){ showToast('Enter your name first'); document.getElementById('setupOverlay').classList.remove('hidden'); return; }
+  if(html5QrCode){ return; }
+
+  if(typeof Html5Qrcode === 'undefined'){
+    showToast('Scanner library failed to load (blocked or offline)', 6000);
+    return;
+  }
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    showToast('Camera API unavailable in this browser/frame', 6000);
+    return;
+  }
+
+  try{
+    html5QrCode = new Html5Qrcode("reader");
+    Html5Qrcode.getCameras().then(cams=>{
+      if(!cams || cams.length===0){ showToast('No camera found', 6000); html5QrCode=null; return; }
+      const camId = cams.length>1 ? cams[cams.length-1].id : cams[0].id;
+      html5QrCode.start(camId, { fps: 10, qrbox: 220 }, onScanSuccess, ()=>{})
+        .catch(err=>{
+          showToast('Camera start failed: ' + (err && err.message ? err.message : err), 6000);
+          html5QrCode = null;
+        });
+    }).catch(err=>{
+      showToast('Camera permission/list failed: ' + (err && err.message ? err.message : err), 6000);
+      html5QrCode = null;
+    });
+  }catch(err){
+    showToast('Scanner init error: ' + (err && err.message ? err.message : err), 6000);
+    html5QrCode = null;
+  }
+}
+function stopScanner(){
+  if(html5QrCode){
+    html5QrCode.stop().then(()=>{ html5QrCode.clear(); html5QrCode = null; }).catch(()=>{ html5QrCode = null; });
+  }
+}
+
+function onScanSuccess(decodedText){
+  const inst = instruments.find(i=>i.id === decodedText.trim());
+  stopScanner();
+  if(!inst){ showToast('Unrecognized QR — not a registered instrument'); return; }
+  logInstantly(inst);
+}
+document.getElementById('manualLogBtn').addEventListener('click', ()=>{
+  const id = document.getElementById('manualSelect').value;
+  const inst = instruments.find(i=>i.id===id);
+  if(!inst){ showToast('No instrument selected'); return; }
+  logInstantly(inst);
+});
+
+async function logInstantly(inst){
+  if(!profile){ showToast('Enter your name first'); document.getElementById('setupOverlay').classList.remove('hidden'); return; }
+  const action = nextActionFor(inst.id);
+  const entry = {
+    id: uid(),
+    instrumentId: inst.id,
+    instrumentName: inst.name,
+    action: action,
+    user: profile.name,
+    timestamp: new Date().toISOString()
+  };
+  logs.unshift(entry);
+  renderInstruments();
+  renderLogs();
+
+  document.getElementById('scanResultCard').classList.remove('hidden');
+  const tag = document.getElementById('confirmTag');
+  tag.textContent = action.toUpperCase();
+  tag.className = 'big-tag ' + action;
+  document.getElementById('confirmInstName').textContent = inst.name;
+  document.getElementById('confirmMeta').textContent = profile.name + ' · ' + new Date(entry.timestamp).toLocaleTimeString();
+  document.getElementById('scanResultCard').scrollIntoView({behavior:'smooth'});
+  showToast(action === 'entry' ? 'Entry logged' : 'Exit logged');
+  setTimeout(()=>{ document.getElementById('scanResultCard').classList.add('hidden'); }, 3500);
+
+  try{
+    await postToSheet({ action: 'addLog', id: entry.id, instrumentId: entry.instrumentId, instrumentName: entry.instrumentName, logAction: entry.action, user: entry.user, timestamp: entry.timestamp });
+  }catch(e){
+    showToast('Save failed: ' + (e && e.message ? e.message : e), 6000);
+  }
+}
+
+// ---- Log history ----
+function renderLogs(){
+  const list = document.getElementById('logList');
+  if(logs.length === 0){ list.innerHTML = '<div class="empty">No log entries yet.</div>'; return; }
+  list.innerHTML = logs.map(l => `
+    <div class="log-row">
+      <div class="log-top">
+        <span>${escapeHtml(l.instrumentName)}</span>
+        <span class="action-tag ${l.action}">${l.action}</span>
+      </div>
+      <div class="muted">${new Date(l.timestamp).toLocaleString()} · ${escapeHtml(l.user)}</div>
+    </div>
+  `).join('');
+}
+
+loadProfile();
+loadData();
+</script>
+
+</body>
+</html>
